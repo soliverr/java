@@ -93,7 +93,7 @@ See `attributes/default.rb` for default values.
 - `node['java']['download_path']` - Location to download and extract the tarball
 - `node['java']['install_flavor']` - Flavor of JVM you would like installed (`oracle`, `oracle_rpm`, `openjdk`, `adoptopenjdk`, `ibm`, `windows`), default `openjdk` on Linux/Unix platforms, `windows` on Windows platforms.
 - `node['java']['install_type']` - Type of Java installation, defauls to jdk, needed for JCE to find the install path of jar's for JDK/JRE installation.
-- `node['java']['jdk_version']` - JDK version to install, defaults to `'6'`.
+- `node['java']['jdk_version']` - JDK version to install, defaults to `'8'`.
 - `node['java']['java_home']` - Default location of the "`$JAVA_HOME`". To configure this attribute for `ibm`, `ibm_tar`, and `oracle_rpm` install flavors, you must use an attribute precedence of `force_default` or higher in your attribute file.
 - `node['java']['set_etc_environment']` - Optionally sets JAVA_HOME in `/etc/environment` for Default `false`.
 - `node['java']['openjdk_packages']` - Array of OpenJDK package names to install in the `java::openjdk` recipe. This is set based on the platform.

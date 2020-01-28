@@ -35,36 +35,6 @@ s3_remote_path = node['java']['windows']['remote_path']
 uri = ::URI.parse(node['java']['windows']['url'])
 cache_file_path = File.join(node['java']['download_path'], File.basename(::URI.unescape(uri.path)))
 
-if s3_bucket && s3_remote_path
-  aws_s3_file cache_file_path do
-    aws_access_key_id aws_access_key_id
-    aws_secret_access_key aws_secret_access_key
-    aws_session_token aws_session_token
-    checksum pkg_checksum if pkg_checksum
-    bucket s3_bucket
-    remote_path s3_remote_path
-    backup false
-    action :create
-  end
-else
-  ruby_block 'Enable Accessing cookies' do
-    block do
-      cookie_jar = Chef::HTTP::CookieJar
-
-      cookie_jar.instance["#{uri.host}:#{uri.port}"] = 'oraclelicense=accept-securebackup-cookie'
-    end
-
-    only_if { node['java']['oracle']['accept_oracle_download_terms'] }
-  end
-
-  remote_file cache_file_path do
-    checksum pkg_checksum if pkg_checksum
-    source node['java']['windows']['url']
-    backup false
-    action :create
-  end
-end
-
 if node['java'].attribute?('java_home') && !node['java']['java_home'].nil?
   java_home_win = win_friendly_path(node['java']['java_home'])
   additional_options = if node['java']['jdk_version'].to_s == '8'
@@ -96,14 +66,48 @@ if node['java']['windows'].attribute?('remove_obsolete') && node['java']['window
   additional_options = "#{additional_options} REMOVEOUTOFDATEJRES=1"
 end
 
-windows_package node['java']['windows']['package_name'] do
-  source cache_file_path
-  checksum node['java']['windows']['checksum']
-  action :install
-  returns node['java']['windows']['returns']
-  installer_type :custom
-  options "/s #{additional_options}"
-  notifies :write, 'log[jdk-version-changed]', :immediately
+# Check if java executable exists
+unless find_java(java_home_win ? java_home_win : java_publicjre_home_win, node['java']['jdk_version'])
+  if s3_bucket && s3_remote_path
+    aws_s3_file cache_file_path do
+      aws_access_key_id aws_access_key_id
+      aws_secret_access_key aws_secret_access_key
+      aws_session_token aws_session_token
+      checksum pkg_checksum if pkg_checksum
+      bucket s3_bucket
+      remote_path s3_remote_path
+      backup false
+      action :create
+    end
+  else
+    ruby_block 'Enable Accessing cookies' do
+      block do
+        cookie_jar = Chef::HTTP::CookieJar
+
+        cookie_jar.instance["#{uri.host}:#{uri.port}"] = 'oraclelicense=accept-securebackup-cookie'
+      end
+
+      only_if { node['java']['oracle']['accept_oracle_download_terms'] }
+    end
+
+    remote_file cache_file_path do
+      checksum pkg_checksum if pkg_checksum
+      source node['java']['windows']['url']
+      backup false
+      action :create
+    end
+  end
+
+
+  windows_package node['java']['windows']['package_name'] do
+    source cache_file_path
+    checksum node['java']['windows']['checksum']
+    action :install
+    returns node['java']['windows']['returns']
+    installer_type :custom
+    options "/s #{additional_options}"
+    notifies :write, 'log[jdk-version-changed]', :immediately
+  end
 end
 
 include_recipe 'java::oracle_jce' if node['java']['oracle']['jce']['enabled']

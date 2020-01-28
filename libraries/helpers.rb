@@ -16,6 +16,7 @@
 #
 
 require 'chef/version_constraint'
+require 'chef/util/path_helper'
 require 'uri'
 require 'pathname'
 
@@ -84,5 +85,40 @@ class Chef
     def platform_requires_license_acceptance?
       %w(smartos).include?(node['platform'])
     end
+
+    def find_java(java_home=nil, version=nil)
+      # java_home - given JAVA_HOME to check version
+      # version - major JAVA version, e.g. '1.8.0_232' -> 8
+      if node['platform'] == 'windows'
+        existence_check = :exists?
+        which = 'where'
+        java_in_path = java_home ? "#{java_home}\\bin:java.exe" : "java.exe"
+      else
+        existence_check = :executable?
+        which = 'which'
+        java_in_path = java_home ? "#{java_home}/bin/java" : "java"
+      end
+
+      Chef::Log.debug "Using '#{which}' in #{java_in_path} to check the Java binary"
+
+      # check all executables for version
+      shell_out("#{which} #{java_in_path}").stdout.chomp.split(/\n+/).each do |p|
+        p = "\"#{p}\"" if ['windows'].include?(node['platform'])
+        if version
+          if shell_out("#{p} -version").stderr.chomp =~ /^([^ ]+) version "(\d+)\.(\d+)\.(.*)"/m
+            jdk = $1
+            ver = $2
+            rel = $3
+            subver = $4
+            Chef::Log.debug "Found JDK: #{jdk} version #{ver}.#{rel}.#{subver} for node['jdk_version'] = #{version}"
+            return p if version && version == rel
+          end
+        else
+          return p
+        end
+      end
+      false
+    end
+
   end
 end
